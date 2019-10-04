@@ -16,12 +16,13 @@
 package com.hazelcast.simulator.worker.loadsupport;
 
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.simulator.utils.ExceptionReporter;
 import com.hazelcast.simulator.utils.ThrottlingLogger;
 import com.hazelcast.spi.exception.TargetDisconnectedException;
 import org.apache.log4j.Logger;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
@@ -59,7 +60,7 @@ abstract class AbstractAsyncStreamer<K, V> implements Streamer<K, V> {
         this.throttlingLogger = ThrottlingLogger.newLogger(LOGGER, MAXIMUM_LOGGING_RATE_MILLIS);
     }
 
-    abstract ICompletableFuture storeAsync(K key, V value);
+    abstract CompletableFuture storeAsync(K key, V value);
 
     @Override
     @SuppressWarnings("unchecked")
@@ -71,8 +72,8 @@ abstract class AbstractAsyncStreamer<K, V> implements Streamer<K, V> {
 
         acquirePermit(1);
         try {
-            ICompletableFuture<V> future = storeAsync(key, value);
-            future.andThen(callback);
+            CompletableFuture<V> future = storeAsync(key, value);
+            future.whenCompleteAsync(new ExecutionCallbackAdapter<>(callback));
         } catch (Exception e) {
             releasePermit(1);
 

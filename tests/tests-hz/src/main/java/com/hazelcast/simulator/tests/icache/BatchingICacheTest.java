@@ -16,7 +16,6 @@
 package com.hazelcast.simulator.tests.icache;
 
 import com.hazelcast.cache.ICache;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.simulator.hz.HazelcastTest;
 import com.hazelcast.simulator.test.BaseThreadState;
 import com.hazelcast.simulator.test.annotations.Prepare;
@@ -29,6 +28,7 @@ import com.hazelcast.simulator.worker.loadsupport.StreamerFactory;
 import javax.cache.CacheManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.simulator.tests.icache.helpers.CacheUtils.createCacheManager;
 
@@ -68,7 +68,7 @@ public class BatchingICacheTest extends HazelcastTest {
     public void write(ThreadState state) throws Exception {
         Integer key = state.randomInt(keyCount);
         Integer value = state.randomInt();
-        ICompletableFuture<?> future = cache.putAsync(key, value);
+        CompletableFuture<?> future = cache.putAsync(key, value).toCompletableFuture();
         state.futureList.add(future);
         state.syncIfNecessary(state.iteration++);
     }
@@ -76,19 +76,19 @@ public class BatchingICacheTest extends HazelcastTest {
     @TimeStep(prob = -1)
     public void get(ThreadState state) throws Exception {
         Integer key = state.randomInt(keyCount);
-        ICompletableFuture<?> future = cache.getAsync(key);
+        CompletableFuture<?> future = cache.getAsync(key).toCompletableFuture();
         state.futureList.add(future);
         state.syncIfNecessary(state.iteration++);
     }
 
     public class ThreadState extends BaseThreadState {
 
-        private final List<ICompletableFuture<?>> futureList = new ArrayList<ICompletableFuture<?>>(batchSize);
+        private final List<CompletableFuture<?>> futureList = new ArrayList<>(batchSize);
         private long iteration;
 
         private void syncIfNecessary(long iteration) throws Exception {
             if (iteration % batchSize == 0) {
-                for (ICompletableFuture<?> future : futureList) {
+                for (CompletableFuture<?> future : futureList) {
                     future.get();
                 }
                 futureList.clear();

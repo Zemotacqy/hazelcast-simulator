@@ -17,9 +17,9 @@
 package com.hazelcast.simulator.hz.concurrent;
 
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.Pipelining;
 import com.hazelcast.cp.IAtomicLong;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.simulator.hz.HazelcastTest;
 import com.hazelcast.simulator.probes.Probe;
 import com.hazelcast.simulator.test.BaseThreadState;
@@ -28,6 +28,7 @@ import com.hazelcast.simulator.test.annotations.StartNanos;
 import com.hazelcast.simulator.test.annotations.Teardown;
 import com.hazelcast.simulator.test.annotations.TimeStep;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public class AtomicLongTest extends HazelcastTest {
@@ -69,8 +70,8 @@ public class AtomicLongTest extends HazelcastTest {
         if (state.pipeline == null) {
             state.pipeline = new Pipelining<Long>(pipelineDepth);
         }
-        ICompletableFuture<Long> f = state.randomCounter().getAsync();
-        f.andThen(new ExecutionCallback<Long>() {
+        CompletableFuture<Long> f = state.randomCounter().getAsync().toCompletableFuture();
+        f.whenCompleteAsync(new ExecutionCallbackAdapter<>(new ExecutionCallback<Long>() {
             @Override
             public void onResponse(Long response) {
                 probe.done(startNanos);
@@ -80,7 +81,7 @@ public class AtomicLongTest extends HazelcastTest {
             public void onFailure(Throwable t) {
                 probe.done(startNanos);
             }
-        }, callerRuns);
+        }), callerRuns);
         state.pipeline.add(f);
         state.i++;
         if (state.i == pipelineIterations) {

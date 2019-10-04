@@ -2,7 +2,7 @@ package com.hazelcast.simulator.worker.loadsupport;
 
 import com.hazelcast.cache.ICache;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.simulator.TestEnvironmentUtils;
 import com.hazelcast.simulator.utils.CommandLineExitException;
 import org.junit.After;
@@ -11,6 +11,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +37,7 @@ public class AsyncCacheStreamerTest {
     private final ICache<Integer, String> cache = mock(ICache.class);
 
     @SuppressWarnings("unchecked")
-    private final ICompletableFuture<Void> future = mock(ICompletableFuture.class);
+    private final CompletableFuture<Void> future = mock(CompletableFuture.class);
 
     private Streamer<Integer, String> streamer;
 
@@ -76,7 +77,7 @@ public class AsyncCacheStreamerTest {
                 callback.onResponse("value");
                 return null;
             }
-        }).when(future).andThen(any(ExecutionCallback.class));
+        }).when(future).whenCompleteAsync(new ExecutionCallbackAdapter<>(any(ExecutionCallback.class)));
 
         Thread thread = new Thread() {
             @Override
@@ -106,7 +107,7 @@ public class AsyncCacheStreamerTest {
                 callback.onFailure(exception);
                 return null;
             }
-        }).when(future).andThen(any(ExecutionCallback.class));
+        }).when(future).whenCompleteAsync(new ExecutionCallbackAdapter<>(any(ExecutionCallback.class)));
 
         streamer.pushEntry(1, "value");
         streamer.await();

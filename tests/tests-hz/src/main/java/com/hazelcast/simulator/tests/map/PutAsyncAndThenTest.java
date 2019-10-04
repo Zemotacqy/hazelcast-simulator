@@ -16,7 +16,7 @@
 package com.hazelcast.simulator.tests.map;
 
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.map.IMap;
 import com.hazelcast.simulator.hz.HazelcastTest;
 import com.hazelcast.simulator.test.BaseThreadState;
@@ -27,6 +27,7 @@ import com.hazelcast.simulator.test.annotations.TimeStep;
 import com.hazelcast.simulator.tests.helpers.KeyLocality;
 import com.hazelcast.simulator.utils.ExceptionReporter;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -57,8 +58,8 @@ public class PutAsyncAndThenTest extends HazelcastTest {
         }
 
         String key = keys[state.randomInt(keyCount)];
-        ICompletableFuture<String> f = (ICompletableFuture<String>) map.putAsync(key, "");
-        f.andThen(state);
+        CompletableFuture<String> f = (CompletableFuture<String>) map.putAsync(key, "");
+        f.whenCompleteAsync(new ExecutionCallbackAdapter<>(state));
     }
 
     public class ThreadState extends BaseThreadState implements ExecutionCallback<String> {

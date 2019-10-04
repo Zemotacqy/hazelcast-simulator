@@ -17,8 +17,8 @@
 package com.hazelcast.simulator.hz.map;
 
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.Pipelining;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.map.IMap;
 import com.hazelcast.simulator.hz.HazelcastTest;
 import com.hazelcast.simulator.probes.Probe;
@@ -36,144 +36,145 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static com.hazelcast.simulator.utils.GeneratorUtils.generateByteArrays;
 
 public class LongByteArrayMapTest extends HazelcastTest {
 
-    // properties
-    public int keyDomain = 10000;
-    public int valueCount = 10000;
-    public int minValueLength = 10;
-    public int maxValueLength = 10;
-    public int pipelineDepth = 10;
-    public int pipelineIterations = 100;
-    public int getAllSize = 5;
+   // properties
+   public int keyDomain = 10000;
+   public int valueCount = 10000;
+   public int minValueLength = 10;
+   public int maxValueLength = 10;
+   public int pipelineDepth = 10;
+   public int pipelineIterations = 100;
+   public int getAllSize = 5;
 
-    private IMap<Long, byte[]> map;
-    private byte[][] values;
-    private final Executor callerRuns = new Executor() {
-        @Override
-        public void execute(Runnable command) {
-            command.run();
-        }
-    };
+   private IMap<Long, byte[]> map;
+   private byte[][] values;
+   private final Executor callerRuns = new Executor() {
+      @Override
+      public void execute(Runnable command) {
+         command.run();
+      }
+   };
 
-    @Setup
-    public void setUp() {
-        map = targetInstance.getMap(name);
-        values = generateByteArrays(valueCount, minValueLength, maxValueLength);
-    }
+   @Setup
+   public void setUp() {
+      map = targetInstance.getMap(name);
+      values = generateByteArrays(valueCount, minValueLength, maxValueLength);
+   }
 
-    @Prepare(global = true)
-    public void prepare() {
-        Random random = new Random();
-        Streamer<Long, byte[]> streamer = StreamerFactory.getInstance(map);
-        for (long key = 0; key < keyDomain; key++) {
-            byte[] value = values[random.nextInt(valueCount)];
-            streamer.pushEntry(key, value);
-        }
-        streamer.await();
-    }
+   @Prepare(global = true)
+   public void prepare() {
+      Random random = new Random();
+      Streamer<Long, byte[]> streamer = StreamerFactory.getInstance(map);
+      for (long key = 0; key < keyDomain; key++) {
+         byte[] value = values[random.nextInt(valueCount)];
+         streamer.pushEntry(key, value);
+      }
+      streamer.await();
+   }
 
-    @TimeStep(prob = -1)
-    public byte[] get(ThreadState state) {
-        return map.get(state.randomKey());
-    }
+   @TimeStep(prob = -1)
+   public byte[] get(ThreadState state) {
+      return map.get(state.randomKey());
+   }
 
-    @TimeStep(prob = -1)
-    public Map<Long, byte[]> getAll(ThreadState state) {
-        Set<Long> keys = new HashSet<Long>();
-        for (int k = 0; k < getAllSize; k++) {
-            keys.add(state.randomKey());
-        }
-        return map.getAll(keys);
-    }
+   @TimeStep(prob = -1)
+   public Map<Long, byte[]> getAll(ThreadState state) {
+      Set<Long> keys = new HashSet<Long>();
+      for (int k = 0; k < getAllSize; k++) {
+         keys.add(state.randomKey());
+      }
+      return map.getAll(keys);
+   }
 
-    @TimeStep(prob = 0)
-    public void getAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) {
-        map.getAsync(state.randomKey()).andThen(new SimpleExecutionCallback<byte[]>() {
-            @Override
-            public void notify(Object o) {
-                probe.done(startNanos);
-            }
-        });
-    }
+   @TimeStep(prob = 0)
+   public void getAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) {
+      map.getAsync(state.randomKey()).whenCompleteAsync(new ExecutionCallbackAdapter<>(new SimpleExecutionCallback<byte[]>() {
+         @Override
+         public void notify(Object o) {
+            probe.done(startNanos);
+         }
+      }));
+   }
 
-    @TimeStep(prob = 0.1)
-    public byte[] put(ThreadState state) {
-        return map.put(state.randomKey(), state.randomValue());
-    }
+   @TimeStep(prob = 0.1)
+   public byte[] put(ThreadState state) {
+      return map.put(state.randomKey(), state.randomValue());
+   }
 
-    @TimeStep(prob = 0.0)
-    public void putAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) {
-        map.putAsync(state.randomKey(), state.randomValue()).andThen(new SimpleExecutionCallback<byte[]>() {
-            @Override
-            public void notify(Object o) {
-                probe.done(startNanos);
-            }
-        });
-    }
+   @TimeStep(prob = 0.0)
+   public void putAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) {
+      map.putAsync(state.randomKey(), state.randomValue()).whenCompleteAsync(new ExecutionCallbackAdapter<>(new SimpleExecutionCallback<byte[]>() {
+         @Override
+         public void notify(Object o) {
+            probe.done(startNanos);
+         }
+      }));
+   }
 
-    @TimeStep(prob = 0)
-    public void set(ThreadState state) {
-        map.set(state.randomKey(), state.randomValue());
-    }
+   @TimeStep(prob = 0)
+   public void set(ThreadState state) {
+      map.set(state.randomKey(), state.randomValue());
+   }
 
-    @TimeStep(prob = 0)
-    public void setAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) {
-        map.setAsync(state.randomKey(), state.randomValue()).andThen(new SimpleExecutionCallback<Void>() {
-            @Override
-            public void notify(Object o) {
-                probe.done(startNanos);
-            }
-        });
-    }
+   @TimeStep(prob = 0)
+   public void setAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) {
+      map.setAsync(state.randomKey(), state.randomValue()).whenCompleteAsync(new ExecutionCallbackAdapter<>(new SimpleExecutionCallback<Void>() {
+         @Override
+         public void notify(Object o) {
+            probe.done(startNanos);
+         }
+      }));
+   }
 
-    @TimeStep(prob = 0)
-    public void pipelinedGet(final ThreadState state, @StartNanos final long startNanos, final Probe probe) throws Exception {
-        if (state.pipeline == null) {
-            state.pipeline = new Pipelining<byte[]>(pipelineDepth);
-        }
+   @TimeStep(prob = 0)
+   public void pipelinedGet(final ThreadState state, @StartNanos final long startNanos, final Probe probe) throws Exception {
+      if (state.pipeline == null) {
+         state.pipeline = new Pipelining<byte[]>(pipelineDepth);
+      }
 
-        ICompletableFuture<byte[]> f = map.getAsync(state.randomKey());
-        f.andThen(new ExecutionCallback<byte[]>() {
-            @Override
-            public void onResponse(byte[] response) {
-                probe.done(startNanos);
-            }
+      CompletableFuture<byte[]> f = map.getAsync(state.randomKey()).toCompletableFuture();
+      f.whenCompleteAsync(new ExecutionCallbackAdapter<>(new ExecutionCallback<byte[]>() {
+         @Override
+         public void onResponse(byte[] response) {
+            probe.done(startNanos);
+         }
 
-            @Override
-            public void onFailure(Throwable t) {
-                probe.done(startNanos);
-            }
-        }, callerRuns);
-        state.pipeline.add(f);
-        state.i++;
-        if (state.i == pipelineIterations) {
-            state.i = 0;
-            state.pipeline.results();
-            state.pipeline = null;
-        }
-    }
+         @Override
+         public void onFailure(Throwable t) {
+            probe.done(startNanos);
+         }
+      }), callerRuns);
+      state.pipeline.add(f);
+      state.i++;
+      if (state.i == pipelineIterations) {
+         state.i = 0;
+         state.pipeline.results();
+         state.pipeline = null;
+      }
+   }
 
 
-    public class ThreadState extends BaseThreadState {
-        private Pipelining<byte[]> pipeline;
-        private int i;
+   public class ThreadState extends BaseThreadState {
+      private Pipelining<byte[]> pipeline;
+      private int i;
 
-        private long randomKey() {
-            return randomLong(keyDomain);
-        }
+      private long randomKey() {
+         return randomLong(keyDomain);
+      }
 
-        private byte[] randomValue() {
-            return values[randomInt(values.length)];
-        }
-    }
+      private byte[] randomValue() {
+         return values[randomInt(values.length)];
+      }
+   }
 
-    @Teardown
-    public void tearDown() {
-        map.destroy();
-    }
+   @Teardown
+   public void tearDown() {
+      map.destroy();
+   }
 }

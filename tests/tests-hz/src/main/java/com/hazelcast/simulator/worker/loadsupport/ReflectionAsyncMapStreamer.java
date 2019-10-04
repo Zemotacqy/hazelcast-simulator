@@ -16,11 +16,11 @@
 
 package com.hazelcast.simulator.worker.loadsupport;
 
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.map.IMap;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * This is needed when Simulator is compiled against Hazelcast 3.7+, but uses 3.6- in runtime.
@@ -49,9 +49,9 @@ public class ReflectionAsyncMapStreamer<K, V> extends AbstractAsyncStreamer<K, V
     }
 
     @Override
-    ICompletableFuture storeAsync(K key, V value) {
+    CompletableFuture storeAsync(K key, V value) {
         try {
-            return (ICompletableFuture) PUT_ASYNC_METHOD.invoke(map, key, value);
+            return (CompletableFuture) PUT_ASYNC_METHOD.invoke(map, key, value);
         } catch (IllegalAccessException e) {
             throw new AssertionError(e);
         } catch (InvocationTargetException e) {

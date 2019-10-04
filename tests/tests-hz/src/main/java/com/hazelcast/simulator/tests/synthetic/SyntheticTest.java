@@ -16,7 +16,7 @@
 package com.hazelcast.simulator.tests.synthetic;
 
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.partition.Partition;
 import com.hazelcast.simulator.hz.HazelcastTest;
 import com.hazelcast.simulator.probes.Probe;
@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.simulator.tests.helpers.HazelcastTestUtils.isClient;
 import static com.hazelcast.simulator.tests.helpers.KeyLocality.SHARED;
@@ -89,14 +90,14 @@ public class SyntheticTest extends HazelcastTest {
 
    @TimeStep(prob = 1)
    public void invoke(ThreadState state) throws Exception {
-      ICompletableFuture<Object> future = state.invokeOnNextPartition();
+      CompletableFuture<Object> future = state.invokeOnNextPartition();
       future.get();
    }
 
    @TimeStep(prob = 0)
    public void invokeAsync(ThreadState state, final Probe probe, @StartNanos final long startNanos) throws Exception {
-      ICompletableFuture<Object> future = state.invokeOnNextPartition();
-      future.andThen(new ExecutionCallback<Object>() {
+      CompletableFuture<Object> future = state.invokeOnNextPartition();
+      future.whenCompleteAsync(new ExecutionCallbackAdapter<>(new ExecutionCallback<Object>() {
          @Override
          public void onResponse(Object o) {
             probe.done(startNanos);
@@ -106,7 +107,7 @@ public class SyntheticTest extends HazelcastTest {
          public void onFailure(Throwable throwable) {
             ExceptionReporter.report(testContext.getTestId(), throwable);
          }
-      });
+      }));
    }
 
    public class ThreadState extends BaseThreadState {
@@ -118,7 +119,7 @@ public class SyntheticTest extends HazelcastTest {
 
       private int partitionIndex;
 
-      private ICompletableFuture<Object> invokeOnNextPartition() throws Exception {
+      private CompletableFuture<Object> invokeOnNextPartition() throws Exception {
          int partitionId = nextPartitionId();
          SyntheticOperation operation = new SyntheticOperation(syncBackupCount, asyncBackupCount, getBackupDelayNanos());
          return operationService.invokeOnPartition(serviceName, operation, partitionId);

@@ -17,8 +17,8 @@ package com.hazelcast.simulator.tests.concurrent.atomiclong;
 
 import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.ExecutionCallback;
-import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.cp.IAtomicLong;
+import com.hazelcast.executor.impl.ExecutionCallbackAdapter;
 import com.hazelcast.simulator.hz.HazelcastTest;
 import com.hazelcast.simulator.probes.Probe;
 import com.hazelcast.simulator.test.BaseThreadState;
@@ -36,6 +36,7 @@ import com.hazelcast.simulator.utils.ExceptionReporter;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static com.hazelcast.simulator.tests.helpers.HazelcastTestUtils.isClient;
 import static com.hazelcast.simulator.tests.helpers.HazelcastTestUtils.isMemberNode;
@@ -83,17 +84,17 @@ public class AsyncAtomicLongTest extends HazelcastTest {
     public void write(ThreadState state, Probe probe, @StartNanos long startNanos) {
         IAtomicLong counter = state.getRandomCounter();
         state.increments++;
-        ICompletableFuture<Long> future = counter.incrementAndGetAsync();
+        CompletableFuture<Long> future = counter.incrementAndGetAsync().toCompletableFuture();
         state.add(future);
-        future.andThen(new LongExecutionCallback(probe, startNanos));
+        future.whenCompleteAsync(new ExecutionCallbackAdapter<>(new LongExecutionCallback(probe, startNanos)));
     }
 
     @TimeStep(prob = -1)
     public void get(ThreadState state, Probe probe, @StartNanos long startNanos) {
         IAtomicLong counter = state.getRandomCounter();
-        ICompletableFuture<Long> future = counter.getAsync();
+        CompletableFuture<Long> future = counter.getAsync().toCompletableFuture();
         state.add(future);
-        future.andThen(new LongExecutionCallback(probe, startNanos));
+        future.whenCompleteAsync(new ExecutionCallbackAdapter<>(new LongExecutionCallback(probe, startNanos)));
     }
 
     @AfterRun
@@ -103,17 +104,17 @@ public class AsyncAtomicLongTest extends HazelcastTest {
 
     public class ThreadState extends BaseThreadState {
 
-        final List<ICompletableFuture> batch = new LinkedList<ICompletableFuture>();
+        final List<CompletableFuture> batch = new LinkedList<>();
         long increments;
 
-        void add(ICompletableFuture<Long> future) {
+        void add(CompletableFuture<Long> future) {
             if (batchSize <= 0) {
                 return;
             }
 
             batch.add(future);
             if (batch.size() == batchSize) {
-                for (ICompletableFuture batchFuture : batch) {
+                for (CompletableFuture batchFuture : batch) {
                     try {
                         batchFuture.get();
                     } catch (Exception e) {

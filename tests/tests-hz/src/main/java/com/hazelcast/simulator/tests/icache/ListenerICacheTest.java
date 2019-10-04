@@ -124,7 +124,7 @@ public class ListenerICacheTest extends HazelcastTest {
         ExpiryPolicy expiryPolicy = new CreatedExpiryPolicy(new Duration(MILLISECONDS, expiryDuration));
 
         int key = state.randomInt(keyCount);
-        Future<Long> future = cache.getAsync(key, expiryPolicy);
+        Future<Long> future = cache.getAsync(key, expiryPolicy).toCompletableFuture();
         future.get();
         state.getAsyncExpiry++;
     }
