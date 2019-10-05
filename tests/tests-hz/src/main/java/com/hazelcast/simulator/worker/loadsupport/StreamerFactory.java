@@ -44,7 +44,8 @@ public final class StreamerFactory {
     public static <K, V> Streamer<K, V> getInstance(IMap<K, V> map, int concurrencyLevel) {
         if (CREATE_ASYNC.get()) {
             if (USE_REFLECTION_STREAMER) {
-                return new ReflectionAsyncMapStreamer<K, V>(concurrencyLevel, map);
+                throw new IllegalStateException("In Reflection branch");
+//                return new ReflectionAsyncMapStreamer<K, V>(concurrencyLevel, map);
             } else {
                 return new AsyncMapStreamer<K, V>(concurrencyLevel, map);
             }
