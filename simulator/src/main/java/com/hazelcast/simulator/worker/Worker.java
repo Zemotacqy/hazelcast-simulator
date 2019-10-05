@@ -18,6 +18,7 @@ package com.hazelcast.simulator.worker;
 import com.hazelcast.simulator.agent.workerprocess.WorkerParameters;
 import com.hazelcast.simulator.common.ProcessSuicideThread;
 import com.hazelcast.simulator.common.ShutdownThread;
+import com.hazelcast.simulator.common.ThreadDumpThread;
 import com.hazelcast.simulator.protocol.Server;
 import com.hazelcast.simulator.protocol.core.SimulatorAddress;
 import com.hazelcast.simulator.utils.ExceptionReporter;
@@ -90,6 +91,11 @@ public class Worker {
         vendorDriver.startVendorInstance();
 
         new ProcessSuicideThread(parameters.get("agent.pid"), parameters.intGet("WORKER_ORPHAN_INTERVAL_SECONDS")).start();
+
+        String threadDumpInterval = parameters.get("WORKER_THREAD_DUMP_INTERVAL_SECONDS");
+        if (threadDumpInterval != null && !threadDumpInterval.isEmpty()) {
+            new ThreadDumpThread(parameters.get("agent.pid"), Integer.parseInt(threadDumpInterval)).start();
+        }
 
         // we need to signal start after everything has completed. Otherwise messages could be send on the agent topic
         // without the agent being subscribed.
