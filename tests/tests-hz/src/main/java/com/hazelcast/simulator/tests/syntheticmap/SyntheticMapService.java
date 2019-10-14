@@ -33,6 +33,16 @@ public class SyntheticMapService implements ManagedService, RemoteService {
    private Partition[] partitions;
 
    @Override
+   public DistributedObject createDistributedObject(String objectName, boolean local) {
+      throw new UnsupportedOperationException("Not implemented yet");
+   }
+
+   @Override
+   public void destroyDistributedObject(String objectName, boolean local) {
+      throw new UnsupportedOperationException("Not implemented yet");
+   }
+
+   @Override
    public DistributedObject createDistributedObject(String objectName) {
       return new SyntheticMapProxy(objectName, nodeEngine, this);
    }
